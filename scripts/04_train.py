@@ -44,6 +44,7 @@ def main():
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--save-dir", default="outputs/checkpoints", help="Directory to save checkpoints")
     parser.add_argument("--stride", type=int, default=None, help="Override training stride")
+    parser.add_argument("--base-channels", type=int, default=64, help="UNet base channel width")
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -69,15 +70,19 @@ def main():
         split="Train",
         patch_size=patch_size,
         stride=stride,
-        augment=True
+        augment=True,
+        cache_in_memory=False,
+        load_s1=False
     )
     
     test_dataset = FloodPatchDataset(
         dataset_root=dataset_root,
         split="Test",
         patch_size=patch_size,
-        stride=patch_size, # non-overlapping for validation/test
-        augment=False
+        stride=512, # larger stride for fast validation during training
+        augment=False,
+        cache_in_memory=False,
+        load_s1=False
     )
     
     train_loader = DataLoader(
@@ -98,7 +103,7 @@ def main():
     
     # Instantiate Model
     print("Initializing model...")
-    model = UNet(in_channels=11, num_classes=6).to(device)
+    model = UNet(in_channels=11, num_classes=6, base_channels=args.base_channels).to(device)
     
     # Loss functions
     class_weights = get_class_weights()

@@ -18,6 +18,7 @@ def main():
     parser = argparse.ArgumentParser(description="Evaluate a trained segmentation model on the Test split.")
     parser.add_argument("--config", default="configs/data.yaml", help="Path to data config file")
     parser.add_argument("--checkpoint", default="outputs/checkpoints/unet_best.pt", help="Path to model checkpoint")
+    parser.add_argument("--base-channels", type=int, default=64, help="UNet base channel width")
     args = parser.parse_args()
 
     # Load configuration
@@ -38,7 +39,9 @@ def main():
         split="Test",
         patch_size=patch_size,
         stride=patch_size, # non-overlapping for test metrics
-        augment=False
+        augment=False,
+        cache_in_memory=False,
+        load_s1=False
     )
     
     test_loader = DataLoader(
@@ -50,7 +53,7 @@ def main():
     
     # Load model
     print("Loading model and checkpoint...")
-    model = UNet(in_channels=11, num_classes=6).to(device)
+    model = UNet(in_channels=11, num_classes=6, base_channels=args.base_channels).to(device)
     
     checkpoint = torch.load(args.checkpoint, map_location=device)
     model.load_state_dict(checkpoint['model_state_dict'])
