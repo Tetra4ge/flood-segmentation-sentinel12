@@ -1,0 +1,8 @@
+dataset_root: "c:/Users/prajw/OneDrive - Amrita Vishwa Vidyapeetham/Desktop/SEM5/Deep Learning/Dataset/IEW_seg_DATASET_FINAL"
+patch_size: 64
+stride: 64
+s2_channels: 11
+s1_channels: 3
+classes: [2, 3, 4, 5, 6, 7]
+ignore_classes: [10, 11]
+cache_root: "outputs/patches"
