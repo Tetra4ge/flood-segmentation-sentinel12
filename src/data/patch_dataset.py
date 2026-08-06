@@ -5,7 +5,6 @@ import rasterio
 from rasterio.windows import Window
 from pathlib import Path
 from typing import List, Dict, Tuple
-import yaml
 
 from src.data.splits import get_scene_files
 
@@ -27,6 +26,7 @@ class FloodPatchDataset(Dataset):
     ):
         """
         PyTorch Dataset for Sentinel-1/2 Flood Segmentation using windowed reads.
+        Keeps file handles open for fast reading in single-threaded mode (num_workers=0).
         """
         self.dataset_root = dataset_root
         self.split = split
@@ -37,18 +37,28 @@ class FloodPatchDataset(Dataset):
         # Get aligned scene files
         self.scenes = get_scene_files(dataset_root, split)
         
-        # Pre-calculate patch grid windows
+        # Open file readers and cache them
+        self.s2_readers = []
+        self.s1_readers = []
+        self.gt_readers = []
+        
         self.patches = []
         
         for scene_idx, scene in enumerate(self.scenes):
-            # Open file temporarily to read dimensions
-            with rasterio.open(scene["S2"]) as src:
-                H, W = src.height, src.width
+            s2_src = rasterio.open(scene["S2"])
+            self.s2_readers.append(s2_src)
+            
+            s1_src = rasterio.open(scene["S1"])
+            self.s1_readers.append(s1_src)
+            
+            gt_src = rasterio.open(scene["GT_0_8"])
+            self.gt_readers.append(gt_src)
+            
+            H, W = s2_src.height, s2_src.width
             
             # Generate grid window coordinates
             for y in range(0, H - patch_size + 1, stride):
                 for x in range(0, W - patch_size + 1, stride):
-                    # Store scene index and window coordinates
                     self.patches.append({
                         "scene_idx": scene_idx,
                         "y": y,
@@ -57,6 +67,21 @@ class FloodPatchDataset(Dataset):
                     
         print(f"Loaded {split} dataset with {len(self.patches)} total patches from {len(self.scenes)} scenes.")
 
+    def close(self):
+        """Close all open rasterio dataset readers."""
+        for r in self.s2_readers:
+            try: r.close()
+            except: pass
+        for r in self.s1_readers:
+            try: r.close()
+            except: pass
+        for r in self.gt_readers:
+            try: r.close()
+            except: pass
+
+    def __del__(self):
+        self.close()
+
     def __len__(self) -> int:
         return len(self.patches)
 
@@ -64,24 +89,17 @@ class FloodPatchDataset(Dataset):
         patch_info = self.patches[idx]
         scene_idx = patch_info["scene_idx"]
         y, x = patch_info["y"], patch_info["x"]
-        scene = self.scenes[scene_idx]
         
         window = Window(x, y, self.patch_size, self.patch_size)
         
-        # Read windows
-        with rasterio.open(scene["S2"]) as s2_src:
-            s2_data = s2_src.read(window=window).astype(np.float32)
-            # Normalize Sentinel-2 to reflectance range [0, 1.0]
-            s2_data /= 10000.0
-            
-        with rasterio.open(scene["S1"]) as s1_src:
-            s1_data = s1_src.read(window=window).astype(np.float32)
-            
-        with rasterio.open(scene["GT_0_8"]) as gt_src:
-            gt_data = gt_src.read(1, window=window).astype(np.int64)
+        # Read from open readers directly (no file opening overhead!)
+        s2_data = self.s2_readers[scene_idx].read(window=window).astype(np.float32)
+        s2_data /= 10000.0
+        
+        s1_data = self.s1_readers[scene_idx].read(window=window).astype(np.float32)
+        gt_data = self.gt_readers[scene_idx].read(1, window=window).astype(np.int64)
             
         # Standardize features using training stats
-        # Transpose or apply operations channel-wise. Shapes: (C, H, W)
         for c in range(11):
             s2_data[c] = (s2_data[c] - S2_MEAN[c]) / S2_STD[c]
             
