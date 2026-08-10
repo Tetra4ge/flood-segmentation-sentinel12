@@ -14,6 +14,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from src.data.patch_dataset import FloodPatchDataset
 from src.models.unet import UNet
+from src.models.rupnet import RUPNet
 from src.losses.generalized_dice import GeneralizedDiceLoss
 from src.losses.weighted_focal import WeightedFocalLoss
 
@@ -45,6 +46,7 @@ def main():
     parser.add_argument("--save-dir", default="outputs/checkpoints", help="Directory to save checkpoints")
     parser.add_argument("--stride", type=int, default=None, help="Override training stride")
     parser.add_argument("--base-channels", type=int, default=64, help="UNet base channel width")
+    parser.add_argument("--model", default="unet", choices=["unet", "rupnet"], help="Model architecture to train")
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -102,8 +104,13 @@ def main():
     )
     
     # Instantiate Model
-    print("Initializing model...")
-    model = UNet(in_channels=11, num_classes=6, base_channels=args.base_channels).to(device)
+    print(f"Initializing model: {args.model}")
+    if args.model == "unet":
+        model = UNet(in_channels=11, num_classes=6, base_channels=args.base_channels).to(device)
+    elif args.model == "rupnet":
+        model = RUPNet(in_channels=11, num_classes=6).to(device)
+    else:
+        raise ValueError(f"Unknown model: {args.model}")
     
     # Loss functions
     class_weights = get_class_weights()
@@ -191,7 +198,8 @@ def main():
         # Save checkpoint if it's the best
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
-            checkpoint_path = os.path.join(args.save_dir, "unet_best.pt")
+            checkpoint_name = f"{args.model}_best.pt"
+            checkpoint_path = os.path.join(args.save_dir, checkpoint_name)
             torch.save({
                 'epoch': epoch,
                 'model_state_dict': model.state_dict(),
