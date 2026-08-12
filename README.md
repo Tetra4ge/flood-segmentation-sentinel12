@@ -92,20 +92,56 @@ graph TD
 
 ---
 
-## 3. Dataset Splits & Classes
+## 3. Dataset Structure & Splits
 
-The **IEW-Seg** dataset covers two national parks in Hungary: **BNPI** (Bükk National Park Directorate, Heves Steppes area) and **KNPI** (Kiskunság National Park Directorate). 
+### What is a "Scene"?
+A **scene** represents a single co-registered spatial area under study on a specific date. In our dataset, each scene comprises aligned Sentinel-1 radar bands, Sentinel-2 optical bands, and ground-truth label maps. The filenames are encoded as `<SITE>_<YYYYMMDD>.tif` (e.g., `BNPI_20210223.tif`).
 
-*   **Training Set (14 Scenes):** 7 BNPI scenes + 7 KNPI scenes.
-*   **Testing Set (9 Scenes):** 4 BNPI scenes + 5 KNPI scenes.
+### Pixel Resolution & Ground Area
+The pixel size of all channels in the geotiff files is **10 meters** (so each pixel corresponds to a $10\text{m} \times 10\text{m}$ area on the ground). Lower-resolution Sentinel-2 bands (originally 20m) and Sentinel-1 bands have been resampled to this 10m grid.
+*   **BNPI scenes ($3600 \times 5400$ pixels):** Cover a physical ground area of **$36\text{km} \times 54\text{km}$** ($1,944 \text{ km}^2$).
+*   **KNPI scenes ($2400 \times 4800$ pixels):** Cover a physical ground area of **$24\text{km} \times 48\text{km}$** ($1,152 \text{ km}^2$).
 
-Each pixel is categorized into one of 6 valid categories:
-1.  **Open surface water (Class 2 / ID 0)**
-2.  **Soil seriously affected by waterlogging (Class 3 / ID 1)**
-3.  **Soil moderately affected by waterlogging (Class 4 / ID 2)**
-4.  **Soil slightly affected by waterlogging (Class 5 / ID 3)**
-5.  **Vegetation affected by waterlogging (Class 6 / ID 4)**
-6.  **Not affected areas (Class 7 / ID 5)**
+### Physical Disk Layout
+The dataset files are stored under the following directory layout:
+```text
+IEW_seg_DATASET_FINAL/
+└── tifs/
+    ├── Train/
+    │   ├── GT/        # Ground Truth geotiffs (class labels {2..7, 10, 11})
+    │   ├── GT_0_8/    # Contiguous label maps (mapped indices {0..7})
+    │   ├── S1/        # Sentinel-1 radar geotiffs (3 bands: VV, VH, VV/VH ratio)
+    │   └── S2/        # Sentinel-2 optical geotiffs (11 bands)
+    └── Test/
+        ├── GT/        # Same structure as Train
+        ├── GT_0_8/
+        ├── S1/
+        └── S2/
+```
+
+### Actual Scenes per Split
+The dataset uses a temporal split to evaluate how well models generalize to unseen time periods:
+
+#### **Training Split (14 Scenes)**
+*   **BNPI (7 scenes):**
+    *   `BNPI_20210223`, `BNPI_20210310`, `BNPI_20230208`, `BNPI_20230213`, `BNPI_20230519`, `BNPI_20240109`, `BNPI_20240203`
+*   **KNPI (7 scenes):**
+    *   `KNPI_20210218`, `KNPI_20210223`, `KNPI_20220119`, `KNPI_20220213`, `KNPI_20220310`, `KNPI_20220325`, `KNPI_20220723`
+
+#### **Testing Split (9 Scenes)**
+*   **BNPI (4 scenes):**
+    *   `BNPI_20220208`, `BNPI_20220325`, `BNPI_20231125`, `BNPI_20240129`
+*   **KNPI (5 scenes):**
+    *   `KNPI_20230213`, `KNPI_20230603`, `KNPI_20240104`, `KNPI_20240129`, `KNPI_20240203`
+
+### Ground Truth Class Encoding
+Each pixel is categorized into one of 6 valid classes:
+1.  **Open surface water** (Class 2 / Index 0)
+2.  **Soil seriously affected by waterlogging** (Class 3 / Index 1)
+3.  **Soil moderately affected by waterlogging** (Class 4 / Index 2)
+4.  **Soil slightly affected by waterlogging** (Class 5 / Index 3)
+5.  **Vegetation affected by waterlogging** (Class 6 / Index 4)
+6.  **Not affected areas** (Class 7 / Index 5)
 
 *(Cloud/Shadow classes 10 & 11 are masked out during loss calculation).*
 
