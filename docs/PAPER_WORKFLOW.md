@@ -247,14 +247,19 @@ The pretrained model was applied — with **no retraining** — to Doñana Natio
 
 ## 7. How this maps to the repository
 
-This repo (see [README.md](../README.md)) currently reproduces:
-- **§3.1 dataset handling** (patch extraction, splits, class stats) → `src/data/`, `scripts/00-03`
-- **§4.2 backbone comparison, partial** (U-Net baseline + RUPNet) → `src/models/unet.py`, `src/models/rupnet.py`, `scripts/04_train.py`, `scripts/05_evaluate.py`
-- **Losses** (GDL + WFL) → `src/losses/`
+This repo (see [README.md](../README.md)) is **7 self-contained Jupyter notebooks**, not a `src/`/`scripts/` package (an earlier plan for that layout was superseded — see README §3):
 
-Not yet implemented (see README §5, "Next Project Phases"):
-- §3.2 knowledge distillation (teacher/student + KL loss)
-- §3.2.1 SplitClass Segmentation (Algorithm 1)
-- §3.2.2 Temporal Gap-Filling (Algorithm 2) + binary Radar_Model
-- §4.5 field-data validation (requires a field-survey file this repo's dataset copy does not currently include — see `docs/PHASE_1_PRD.md` §2)
-- §4.6 cross-site generalization test
+| Repo file | Paper section |
+|---|---|
+| `unet.ipynb`, `unetpp.ipynb`, `rupnet.ipynb` | §3.1 dataset handling + §4.2 backbone comparison (3 of 10 architectures) |
+| `rupnet.ipynb` (checkpoint reused as teacher) + `04_knowledge_distillation.ipynb` | §3.2 / §4.3 knowledge distillation (teacher/student + KL loss) |
+| `05_splitclass_segmentation.ipynb` | §3.2.1 SplitClass Segmentation (Algorithm 1) |
+| `06_radar_model.ipynb` | §4.1 binary Radar_Model (S1-only) |
+| `07_temporal_gapfilling.ipynb` | §3.2.2 Temporal Gap-Filling (Algorithm 2) |
+
+Every notebook implements GDL + WFL (§3.2's stated loss combination) inline.
+
+Not yet implemented, and blocked or out of scope rather than merely unstarted:
+- §4.5 field-data validation against the *real* 2024 field survey — the QField GPS-point file is not present in this repo's dataset copy (see `docs/PHASE_1_PRD.md` §2). `07_temporal_gapfilling.ipynb` implements and evaluates Algorithm 2 against a synthetic cloud-gap proxy instead, and says so explicitly in its own §0.
+- §4.2's remaining 7 backbones (FPN, PSPNet, DeepLabv3+, MANet, AttentionUNet, ResAttnUNet, TransUNet) — only U-Net, U-Net++, RUPNet are implemented; a scope decision, not a blocker.
+- §4.6 cross-site generalization test (Doñana, Spain) — needs an external S1/S2 scene with a reference water layer, outside this project's current dataset.
