@@ -1,153 +1,167 @@
 # Inland Excess Water (IEW) Monitoring using Sentinel-1/2
 
-This repository contains the replication codebase for the paper:
-**"Inland Excess Water (IEW) Monitoring Using Sentinel-1/2: A SplitClass Segmentation and Temporal Gap-Filling Approach"** (ICCVW 2025, Sustainability with Earth Observation and AI Workshop).
+Replication codebase for **"Inland Excess Water (IEW) Monitoring Using Sentinel-1/2: A SplitClass Segmentation and Temporal Gap-Filling Approach"** (ICCVW 2025, Sustainability with Earth Observation and AI Workshop).
 
-*   **Paper Webpage:** [IEEE/CVF Open Access Paper Page](https://openaccess.thecvf.com/content/ICCV2025W/Sustainability/html/Ibrahim_Inland_Excess_Water_IEW_Monitoring_Using_Sentinel-12_A_SplitClass_Segmentation_ICCVW_2025_paper.html)
-*   **Official Website & Dataset:** [Water Detection IEW-Seg Page](https://waterdetection.github.io/water_detection/)
-*   **Full method walkthrough:** [`docs/PAPER_WORKFLOW.md`](docs/PAPER_WORKFLOW.md)
-*   **Implementation-vs-paper alignment report:** [`implementation.md`](implementation.md)
+- **Paper:** [IEEE/CVF Open Access](https://openaccess.thecvf.com/content/ICCV2025W/Sustainability/html/Ibrahim_Inland_Excess_Water_IEW_Monitoring_Using_Sentinel-12_A_SplitClass_Segmentation_ICCVW_2025_paper.html)
+- **Dataset & official page:** [waterdetection.github.io/water_detection](https://waterdetection.github.io/water_detection/)
+- **Full method walkthrough:** [`docs/PAPER_WORKFLOW.md`](docs/PAPER_WORKFLOW.md)
+- **Implementation-vs-paper alignment report:** [`implementation.md`](implementation.md)
 
 ---
 
-## 1. Project Overview
+## Overview
 
-Inland Excess Water (IEW) — waterlogging and seasonal soil saturation — is a major environmental and agricultural risk factor in low-lying agricultural plains (such as the Hungarian Great Plain). Binary "water vs. non-water" segmentation misses this: the paper instead maps 6 fine-grained classes (open water + 4 soil/vegetation severity gradations + "not affected") and combines two complementary satellite sources:
+Binary "water vs. non-water" segmentation misses inland waterlogging. This pipeline instead maps **6 fine-grained classes** (open water + 4 soil/vegetation severity levels + "not affected") by fusing two satellite sources per scene:
 
-1.  **Sentinel-2 Optical Data:** 11 bands (excluding B9 and B10), used for fine-grained 6-class classification.
-2.  **Sentinel-1 SAR Data:** 3 bands (Sigma-0 VV, VH, and the VV/VH ratio), cloud-penetrating but only resolves binary water/non-water — used for gap-filling.
+| Source | Bands | Role |
+|---|---|---|
+| **Sentinel-2** (optical) | 11 bands | Fine-grained 6-class segmentation |
+| **Sentinel-1** (SAR) | 3 bands — VV, VH, VV/VH | Cloud-penetrating, binary water/non-water gap-filling |
 
-## 2. Pipeline & Notebook Flow
-
-The project is organized as **7 self-contained Jupyter notebooks**, one per pipeline stage, each runnable independently (later stages load the checkpoint(s) produced by earlier ones). No external `src/`/`scripts/` package — every notebook duplicates its own data pipeline, losses, and model code so it can be read and run top-to-bottom on its own.
+## System Architecture
 
 ```mermaid
-graph TD
-    A["sen12flood-eda.ipynb\n(precursor EDA, different dataset)"]
-    B1["unet.ipynb\nStage C: U-Net backbone"]
-    B2["unetpp.ipynb\nStage C: U-Net++ backbone"]
-    B3["rupnet.ipynb\nStage C: RUPNet backbone (paper's winner)"]
-    C["04_knowledge_distillation.ipynb\nStage D: Teacher -> Student self-distillation"]
-    D["05_splitclass_segmentation.ipynb\nStage E: Algorithm 1 (confidence-based dual labels)"]
-    E["06_radar_model.ipynb\nStage B: binary S1-only Radar_Model"]
-    F["07_temporal_gapfilling.ipynb\nStage F: Algorithm 2 (cloud-gap reconstruction)"]
+flowchart LR
+    subgraph IN["📡 Input"]
+        S2["Sentinel-2 Optical\n11 bands"]
+        S1["Sentinel-1 SAR\n3 bands"]
+    end
 
-    B1 --> C
-    B2 -.-> C
-    B3 --> C
-    C --> D
-    C --> F
-    E --> F
+    subgraph CORE["🧠 Segmentation Core"]
+        BB["Backbone CNN\nU-Net / U-Net++ / RUPNet"]
+        KD["Self-Distillation\nTeacher → Student"]
+        RM["Radar Model\nbinary S1-only"]
+    end
+
+    subgraph POST["⚙️ Post-Processing"]
+        SC["SplitClass Segmentation\n(Algorithm 1)"]
+        GF["Temporal Gap-Filling\n(Algorithm 2)"]
+    end
+
+    OUT["🗺️ 6-Class IEW Map"]
+
+    S2 --> BB --> KD --> SC
+    S1 --> RM --> GF
+    KD --> GF
+    SC --> OUT
+    GF --> OUT
+
+    classDef input fill:#2b6cb0,stroke:#1a365d,color:#fff
+    classDef core fill:#2f855a,stroke:#22543d,color:#fff
+    classDef post fill:#b7791f,stroke:#7b341e,color:#fff
+    classDef output fill:#553c9a,stroke:#322659,color:#fff
+    class S2,S1 input
+    class BB,KD,RM core
+    class SC,GF post
+    class OUT output
 ```
 
-| # | Notebook | Paper stage | Produces |
+- **Backbone** learns the 6-class map from Sentinel-2.
+- **Self-distillation** compresses the trained teacher into a lighter student.
+- **Radar model** independently predicts binary water from Sentinel-1 (works through cloud cover).
+- **SplitClass Segmentation** refines confident pixels into dual (class, confidence) labels.
+- **Temporal Gap-Filling** uses the radar signal and neighboring dates to reconstruct cloud-obscured pixels in the optical map.
+
+## Pipeline: Notebooks & Data Flow
+
+Each stage is one self-contained Jupyter notebook — no shared `src/` package, so every notebook can be read and run top-to-bottom on its own.
+
+```mermaid
+flowchart TD
+    A["unet.ipynb"]
+    B["unetpp.ipynb"]
+    C["rupnet.ipynb\n(paper's winning backbone)"]
+    D["04_knowledge_distillation.ipynb\nTeacher → Student"]
+    E["05_splitclass_segmentation.ipynb\nAlgorithm 1"]
+    F["06_radar_model.ipynb\nS1-only binary model"]
+    G["07_temporal_gapfilling.ipynb\nAlgorithm 2"]
+
+    A --> D
+    B -.-> D
+    C --> D
+    D --> E
+    D --> G
+    F --> G
+
+    classDef backbone fill:#2b6cb0,stroke:#1a365d,color:#fff
+    classDef stage fill:#2f855a,stroke:#22543d,color:#fff
+    class A,B,C backbone
+    class D,E,F,G stage
+```
+
+| Notebook | Produces |
+|---|---|
+| `unet.ipynb` | `outputs/checkpoints/unet_best.pt` |
+| `unetpp.ipynb` | `outputs/checkpoints/unetpp_best.pt` |
+| `rupnet.ipynb` | `outputs/checkpoints/rupnet_best.pt` (teacher) |
+| `04_knowledge_distillation.ipynb` | `outputs/checkpoints/rupnet_student_best.pt` |
+| `05_splitclass_segmentation.ipynb` | dual confidence-labeled maps (post-processing, no training) |
+| `06_radar_model.ipynb` | `outputs/checkpoints/radar_model_best.pt` |
+| `07_temporal_gapfilling.ipynb` | gap-filled temporal maps (post-processing, no training) |
+
+**Reproduce end-to-end:** `rupnet.ipynb` → `06_radar_model.ipynb` (independent) → `04_knowledge_distillation.ipynb` → `05_splitclass_segmentation.ipynb` and `07_temporal_gapfilling.ipynb` (either order). `unet.ipynb` / `unetpp.ipynb` are backbone-comparison baselines only.
+
+> `sen12flood-eda.ipynb` is precursor EDA on a different, earlier dataset — not part of this pipeline.
+
+## Dataset
+
+**IEW-Seg** — co-registered Sentinel-1/2 scenes over two Hungarian sites, all channels resampled to a common **10 m** grid.
+
+| Site | Scene size | Ground area |
+|---|---|---|
+| BNPI | 3600 × 5400 px | 36 km × 54 km (1,944 km²) |
+| KNPI | 2400 × 4800 px | 24 km × 48 km (1,152 km²) |
+
+**Split** (temporal, to test generalization to unseen dates):
+
+| Split | Scenes | Sites |
+|---|---|---|
+| Train | 14 | 7 BNPI + 7 KNPI |
+| Test | 9 | 4 BNPI + 5 KNPI |
+
+**Ground truth classes** (cloud/shadow classes 10 & 11 are masked out of loss and evaluation):
+
+| Class | Meaning |
+|---|---|
+| 2 | Open surface water |
+| 3 | Soil — seriously affected |
+| 4 | Soil — moderately affected |
+| 5 | Soil — slightly affected |
+| 6 | Vegetation affected |
+| 7 | Not affected |
+
+**On-disk layout:**
+
+```text
+IEW_seg_DATASET_FINAL/tifs/
+├── Train/{GT, GT_0_8, S1, S2}/
+└── Test/{GT, GT_0_8, S1, S2}/
+```
+
+Patches are cut on a 64×64, stride-64 sliding window (`configs/data.yaml`), cached to `outputs/patches/`.
+
+## Current Results (backbone comparison, Stage C)
+
+40 epochs, GDL+WFL loss, evaluated on the full test set (32,691 patches / 9 scenes):
+
+| Model | Params | F1 (all 6 classes) | Paper F1 (Table 1) |
 |---|---|---|---|
-| — | `sen12flood-eda.ipynb` | precursor EDA (different, earlier dataset — not part of the paper's pipeline) | — |
-| 1 | `unet.ipynb` | §4.2 backbone comparison (baseline) | `outputs/checkpoints/unet_best.pt` |
-| 2 | `unetpp.ipynb` | §4.2 backbone comparison | `outputs/checkpoints/unetpp_best.pt` |
-| 3 | `rupnet.ipynb` | §4.2 backbone comparison (paper's winner) + Stage D teacher | `outputs/checkpoints/rupnet_best.pt` |
-| 4 | `04_knowledge_distillation.ipynb` | §3.2/§4.3 self-distillation (Teacher → Student) | `outputs/checkpoints/rupnet_student_best.pt` |
-| 5 | `05_splitclass_segmentation.ipynb` | §3.2.1 Algorithm 1 (post-processing, no training) | — |
-| 6 | `06_radar_model.ipynb` | §4.1 dual-model strategy, binary S1-only branch | `outputs/checkpoints/radar_model_best.pt` |
-| 7 | `07_temporal_gapfilling.ipynb` | §3.2.2 Algorithm 2 | — |
+| U-Net | 32.44M | 96.90% | 79.38% |
+| U-Net++ | 9.16M | 96.79% | 79.10% |
+| RUPNet | 2.05M | 94.35% | **81.19%** (paper's winner) |
 
-**To reproduce end to end:** run `rupnet.ipynb` → `06_radar_model.ipynb` (independent of the above) → `04_knowledge_distillation.ipynb` → `05_splitclass_segmentation.ipynb` and `07_temporal_gapfilling.ipynb` (either order, both need the student + radar checkpoints). `unet.ipynb`/`unetpp.ipynb` are the other two backbone-comparison runs and aren't required for later stages.
+RUPNet — the paper's best backbone — trails here despite matching the paper's parameter count almost exactly; the training log shows it was still improving when the 40-epoch run stopped (undertrained relative to its smaller capacity). See `implementation.md` for the fix and full diagnosis.
 
-Each notebook follows the same internal structure: imports → data pipeline → dataset visualization → losses → model → dataloaders → training → loss curves → evaluation → prediction visualization, so they're directly comparable to each other.
+Stages D–F (`04`–`07`) run correctly but haven't been executed end-to-end in this repo, since the dev environment is CPU-only.
 
-## 3. Directory Structure (actual, current)
+## Repository Layout
 
 ```text
 .
-├── configs/
-│   └── data.yaml                      # Dataset root, patch size, stride, channel/class config
-├── docs/
-│   ├── PHASE_1_PRD.md                 # Product Requirement Document
-│   ├── PHASE_2_TRD.md                 # Technical Requirement Document
-│   ├── PHASE_3_IMPLEMENTATION_PLAN.md # Implementation plan and milestones
-│   ├── PHASE_4_EXPERIMENTATION_RESULTS.md # Results tracker matrix
-│   └── PAPER_WORKFLOW.md              # Full paper method walkthrough + repo mapping
-├── outputs/
-│   ├── checkpoints/                   # Saved model weights (.pt), one per trained model
-│   ├── patches/                       # Cached sliding-window patches
-│   └── class_stats.csv                # Pre-computed class pixel distributions
-├── papers/                            # Reference PDFs (main paper + related work)
-├── sen12flood-eda.ipynb               # Precursor EDA (different dataset)
-├── unet.ipynb                         # Stage C: U-Net backbone
-├── unetpp.ipynb                       # Stage C: U-Net++ backbone
-├── rupnet.ipynb                       # Stage C: RUPNet backbone (+ Stage D teacher source)
-├── 04_knowledge_distillation.ipynb    # Stage D: Teacher -> Student self-distillation
-├── 05_splitclass_segmentation.ipynb   # Stage E: SplitClass Segmentation (Algorithm 1)
-├── 06_radar_model.ipynb               # Stage B: binary Radar_Model (S1-only)
-├── 07_temporal_gapfilling.ipynb       # Stage F: Temporal Gap-Filling (Algorithm 2)
-└── implementation.md                  # Implementation-vs-paper alignment report
+├── configs/data.yaml                  # dataset root, patch size/stride, channels, classes
+├── docs/                              # PRD, TRD, implementation plan, results tracker, paper walkthrough
+├── outputs/                           # checkpoints, cached patches, class stats (generated, gitignored)
+├── papers/                            # reference PDFs
+├── *.ipynb                            # one notebook per pipeline stage (see table above)
+└── implementation.md                  # implementation-vs-paper alignment report
 ```
-
-There is intentionally no `src/`, `scripts/`, or `tests/` directory — an earlier plan for a modular package layout was superseded by self-contained notebooks (each notebook's own markdown says so); this README previously described the old plan and was out of date.
-
-## 4. Dataset Structure & Splits
-
-### What is a "Scene"?
-A **scene** represents a single co-registered spatial area under study on a specific date: aligned Sentinel-1 radar bands, Sentinel-2 optical bands, and ground-truth label maps. Filenames are `<SITE>_<YYYYMMDD>.tif` (e.g., `BNPI_20210223.tif`).
-
-### Pixel Resolution & Ground Area
-All channels are on a **10 m** grid (lower-resolution S2 bands and S1 have been resampled to it).
-*   **BNPI scenes (3600 × 5400 px):** 36 km × 54 km (1,944 km²). Every BNPI-site date shares this exact grid.
-*   **KNPI scenes (2400 × 4800 px):** 24 km × 48 km (1,152 km²). Every KNPI-site date shares this exact grid.
-
-(This per-site grid consistency across all dates is what makes `07_temporal_gapfilling.ipynb`'s cross-date patch lookups valid — a `(y, x)` window means the same ground location on any date of the same site.)
-
-### Physical Disk Layout
-```text
-IEW_seg_DATASET_FINAL/
-└── tifs/
-    ├── Train/
-    │   ├── GT/        # Ground Truth geotiffs (class labels {2..7, 10, 11})
-    │   ├── GT_0_8/    # Contiguous label maps (mapped indices {0..7})
-    │   ├── S1/        # Sentinel-1 radar geotiffs (3 bands: VV, VH, VV/VH ratio)
-    │   └── S2/        # Sentinel-2 optical geotiffs (11 bands)
-    └── Test/
-        ├── GT/ GT_0_8/ S1/ S2/        # same structure as Train
-```
-
-### Actual Scenes per Split
-Temporal split to test generalization to unseen time periods:
-
-#### Training Split (14 scenes)
-*   **BNPI (7):** `BNPI_20210223`, `BNPI_20210310`, `BNPI_20230208`, `BNPI_20230213`, `BNPI_20230519`, `BNPI_20240109`, `BNPI_20240203`
-*   **KNPI (7):** `KNPI_20210218`, `KNPI_20210223`, `KNPI_20220119`, `KNPI_20220213`, `KNPI_20220310`, `KNPI_20220325`, `KNPI_20220723`
-
-#### Testing Split (9 scenes)
-*   **BNPI (4):** `BNPI_20220208`, `BNPI_20220325`, `BNPI_20231125`, `BNPI_20240129`
-*   **KNPI (5):** `KNPI_20230213`, `KNPI_20230603`, `KNPI_20240104`, `KNPI_20240129`, `KNPI_20240203`
-
-### Ground Truth Class Encoding
-1.  **Open surface water** (Class 2 / Index 0)
-2.  **Soil seriously affected by waterlogging** (Class 3 / Index 1)
-3.  **Soil moderately affected by waterlogging** (Class 4 / Index 2)
-4.  **Soil slightly affected by waterlogging** (Class 5 / Index 3)
-5.  **Vegetation affected by waterlogging** (Class 6 / Index 4)
-6.  **Not affected areas** (Class 7 / Index 5)
-
-*(Cloud/Shadow classes 10 & 11 are masked out of the loss and out of evaluation.)*
-
-## 5. Current Experimental Results (Stage C, backbone comparison)
-
-All three models trained 40 epochs, GDL+WFL, evaluated on the full non-overlapping test set (32,691 patches / 9 scenes). Two metrics are reported per model:
-
-- **Pixel-weighted, all 6 classes (2-7):** inflated by the dominant "not affected" class (~87% of pixels) — not comparable to the paper.
-- **Table-1-comparable, classes 2-6 only:** the paper's own metric definition — this is the number to compare against Table 1.
-
-| Model | Params | F1 (all 6 classes) | F1 (Table-1-comparable, classes 2-6) | Paper F1 (Table 1) |
-|---|---|---|---|---|
-| U-Net | 32.44M | 96.90% | *(see notebook §10)* | 79.38% |
-| U-Net++ | 9.16M | 96.79% | *(see notebook §10)* | 79.10% |
-| RUPNet (v1, pre-fix) | 2.05M | 94.35% | *(see notebook §10)* | **81.19% (paper's winner)** |
-
-RUPNet — the paper's best backbone — was the **worst** of the three in the original 40-epoch run, especially on the hard soil-severity classes (3-5). The training log shows it was still improving when training stopped (undertrained relative to its smaller capacity, on a sparse 3,388-patch training set), not architecturally broken — its parameter count (2,048,934) matches the paper's reported 2.05M almost exactly. `rupnet.ipynb` §0 has the full diagnosis and the fix applied (denser training patches, LR warmup, 100-epoch schedule); re-run it to get the updated number. See `implementation.md` for the full writeup.
-
-## 6. Stages D-F (Knowledge Distillation, SplitClass, Gap-Filling)
-
-Now implemented in `04_knowledge_distillation.ipynb`, `05_splitclass_segmentation.ipynb`, `06_radar_model.ipynb`, and `07_temporal_gapfilling.ipynb` (see §2 above for what each produces and the run order). Numbers from these are only meaningful after running them on a machine with a GPU — this repo's dev environment is CPU-only, so they're written to run correctly but haven't been executed here yet. Each notebook ends with a "Summary — fill in after running" cell to record the actual results.
-
-One caveat worth repeating: `07_temporal_gapfilling.ipynb` cannot reproduce the paper's exact Table 3 (field-survey-validated) numbers, because the 2024 QField field-survey file is not present in this repository's dataset copy (see `docs/PHASE_1_PRD.md` §2). It instead implements and evaluates Algorithm 2 against a synthetic cloud-gap proxy — the notebook's own §0 explains the honest scope of that comparison.
