@@ -22,45 +22,60 @@ Binary "water vs. non-water" segmentation misses inland waterlogging. This pipel
 
 ```mermaid
 flowchart LR
-    subgraph IN["📡 Input"]
+    subgraph IN["Input"]
         S2["Sentinel-2 Optical\n11 bands"]
         S1["Sentinel-1 SAR\n3 bands"]
     end
 
-    subgraph CORE["🧠 Segmentation Core"]
+    subgraph PRE["Preprocessing"]
+        PP1["Per-channel standardization\n(mean / std)"]
+        PP2["Sliding-window patching\n64x64, stride 64"]
+        PP3["Flip / rotation augmentation"]
+    end
+
+    subgraph CORE["Segmentation Core"]
         BB["Backbone CNN\nU-Net / U-Net++ / RUPNet"]
-        KD["Self-Distillation\nTeacher → Student"]
+        KD["Self-Distillation\nTeacher -> Student"]
         RM["Radar Model\nbinary S1-only"]
     end
 
-    subgraph POST["⚙️ Post-Processing"]
-        SC["SplitClass Segmentation\n(Algorithm 1)"]
-        GF["Temporal Gap-Filling\n(Algorithm 2)"]
+    subgraph POST["Post-Processing"]
+        SC["SplitClass Segmentation\nAlgorithm 1"]
+        GF["Temporal Gap-Filling\nAlgorithm 2"]
     end
 
-    OUT["🗺️ 6-Class IEW Map"]
+    OUT["6-Class IEW Map"]
 
-    S2 --> BB --> KD --> SC
-    S1 --> RM --> GF
+    S2 --> PP1 --> PP2 --> PP3 --> BB
+    S1 --> PP1
+    BB --> KD --> SC
+    PP3 --> RM --> GF
     KD --> GF
     SC --> OUT
     GF --> OUT
 
     classDef input fill:#2b6cb0,stroke:#1a365d,color:#fff
+    classDef pre fill:#805ad5,stroke:#44337a,color:#fff
     classDef core fill:#2f855a,stroke:#22543d,color:#fff
     classDef post fill:#b7791f,stroke:#7b341e,color:#fff
     classDef output fill:#553c9a,stroke:#322659,color:#fff
     class S2,S1 input
+    class PP1,PP2,PP3 pre
     class BB,KD,RM core
     class SC,GF post
     class OUT output
 ```
 
-- **Backbone** learns the 6-class map from Sentinel-2.
-- **Self-distillation** compresses the trained teacher into a lighter student.
-- **Radar model** independently predicts binary water from Sentinel-1 (works through cloud cover).
-- **SplitClass Segmentation** refines confident pixels into dual (class, confidence) labels.
-- **Temporal Gap-Filling** uses the radar signal and neighboring dates to reconstruct cloud-obscured pixels in the optical map.
+| Stage | What it does |
+|---|---|
+| Standardization | Per-channel mean/std computed from the training set, applied to both S1 and S2 rasters. |
+| Patching | Scenes are cut into 64x64 patches on a stride-64 grid (`configs/data.yaml`), cached to `outputs/patches/`. |
+| Augmentation | Random flips/rotations applied during training only. |
+| Backbone | Learns the 6-class map from Sentinel-2. |
+| Self-distillation | Compresses the trained teacher into a lighter student. |
+| Radar model | Independently predicts binary water from Sentinel-1 (works through cloud cover). |
+| SplitClass Segmentation | Refines confident pixels into dual (class, confidence) labels. |
+| Temporal Gap-Filling | Uses the radar signal and neighboring dates to reconstruct cloud-obscured pixels in the optical map. |
 
 ## Pipeline: Notebooks & Data Flow
 
@@ -137,8 +152,6 @@ IEW_seg_DATASET_FINAL/tifs/
 ├── Train/{GT, GT_0_8, S1, S2}/
 └── Test/{GT, GT_0_8, S1, S2}/
 ```
-
-Patches are cut on a 64×64, stride-64 sliding window (`configs/data.yaml`), cached to `outputs/patches/`.
 
 ## Current Results (backbone comparison, Stage C)
 
