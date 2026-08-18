@@ -79,7 +79,7 @@ flowchart LR
 
 ## Pipeline: Notebooks & Data Flow
 
-Each stage is one self-contained Jupyter notebook — no shared `src/` package, so every notebook can be read and run top-to-bottom on its own.
+Each stage is one self-contained Jupyter notebook — no shared `src/` package, so every notebook can be read and run top-to-bottom on its own. Every model notebook's "Model Architecture" section walks through the convolution math, the encoder/decoder shape flow (with an ASCII diagram tracing exact tensor shapes end to end), and how the final layer's logits become a predicted class map — written to be read directly, not just skimmed as code.
 
 ```mermaid
 flowchart TD
