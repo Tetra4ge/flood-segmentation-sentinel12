@@ -40,10 +40,10 @@ The repo is **four Jupyter notebooks + a config file + cached outputs** — no `
 
 | File | Role | Paper stage |
 |---|---|---|
-| `sen12flood-eda.ipynb` | EDA on a *different*, earlier dataset (SEN12FLOOD) — bands, false-RGB visualization, global coverage, flood-event exploration. Not the IEW-Seg dataset. | Precursor/exploration only, not part of the paper's pipeline |
-| `unet.ipynb` | Self-contained: data pipeline (GeoTIFF I/O, windowed S1/S2/GT reads, standardization, augmentation), GDL+WFL losses, U-Net (residual conv blocks, ~32.4M params), training (40 epochs, cosine LR), full-test-set evaluation, prediction visualization | §3.1 (data) + §4.2 (one of the 10 backbones) |
-| `unetpp.ipynb` | Same structure as above, U-Net++ (nested/dense skip pathways, `base_channels=32`, ~9.16M params) | §4.2 (second backbone) |
-| `rupnet.ipynb` | Same structure, RUPNet (paper's winning backbone, ~2.05M params — matches paper's 2.05M almost exactly) | §4.2 (third backbone, meant to become the KD teacher) |
+| `eda_sen12flood_precursor.ipynb` | EDA on a *different*, earlier dataset (SEN12FLOOD) — bands, false-RGB visualization, global coverage, flood-event exploration. Not the IEW-Seg dataset. | Precursor/exploration only, not part of the paper's pipeline |
+| `01_unet_backbone.ipynb` | Self-contained: data pipeline (GeoTIFF I/O, windowed S1/S2/GT reads, standardization, augmentation), GDL+WFL losses, U-Net (residual conv blocks, ~32.4M params), training (40 epochs, cosine LR), full-test-set evaluation, prediction visualization | §3.1 (data) + §4.2 (one of the 10 backbones) |
+| `02_unetpp_backbone.ipynb` | Same structure as above, U-Net++ (nested/dense skip pathways, `base_channels=32`, ~9.16M params) | §4.2 (second backbone) |
+| `03_rupnet_backbone.ipynb` | Same structure, RUPNet (paper's winning backbone, ~2.05M params — matches paper's 2.05M almost exactly) | §4.2 (third backbone, meant to become the KD teacher) |
 | `configs/data.yaml` | dataset root, patch size (64), stride (64), channel counts (S2=11, S1=3), class list `[2,3,4,5,6,7]`, ignore `[10,11]` | §3.4 class encoding |
 | `outputs/checkpoints/*.pt` | Best-val-loss checkpoints for each trained model | — |
 | `outputs/class_stats.csv`, `outputs/patches/` | Cached class distribution + patch cache | §3.1 |

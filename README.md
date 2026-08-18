@@ -83,12 +83,12 @@ Each stage is one self-contained Jupyter notebook — no shared `src/` package, 
 
 ```mermaid
 flowchart TD
-    A["unet.ipynb"]
-    B["unetpp.ipynb"]
-    C["rupnet.ipynb\n(paper's winning backbone)"]
-    D["04_knowledge_distillation.ipynb\nTeacher → Student"]
-    E["05_splitclass_segmentation.ipynb\nAlgorithm 1"]
-    F["06_radar_model.ipynb\nS1-only binary model"]
+    A["01_unet_backbone.ipynb"]
+    B["02_unetpp_backbone.ipynb"]
+    C["03_rupnet_backbone.ipynb\n(paper's winning backbone)"]
+    D["05_knowledge_distillation.ipynb\nTeacher → Student"]
+    E["06_splitclass_segmentation.ipynb\nAlgorithm 1"]
+    F["04_radar_model.ipynb\nS1-only binary model"]
     G["07_temporal_gapfilling.ipynb\nAlgorithm 2"]
 
     A --> D
@@ -106,17 +106,17 @@ flowchart TD
 
 | Notebook | Produces |
 |---|---|
-| `unet.ipynb` | `outputs/checkpoints/unet_best.pt` |
-| `unetpp.ipynb` | `outputs/checkpoints/unetpp_best.pt` |
-| `rupnet.ipynb` | `outputs/checkpoints/rupnet_best.pt` (teacher) |
-| `04_knowledge_distillation.ipynb` | `outputs/checkpoints/rupnet_student_best.pt` |
-| `05_splitclass_segmentation.ipynb` | dual confidence-labeled maps (post-processing, no training) |
-| `06_radar_model.ipynb` | `outputs/checkpoints/radar_model_best.pt` |
+| `01_unet_backbone.ipynb` | `outputs/checkpoints/unet_best.pt` |
+| `02_unetpp_backbone.ipynb` | `outputs/checkpoints/unetpp_best.pt` |
+| `03_rupnet_backbone.ipynb` | `outputs/checkpoints/rupnet_best.pt` (teacher) |
+| `04_radar_model.ipynb` | `outputs/checkpoints/radar_model_best.pt` |
+| `05_knowledge_distillation.ipynb` | `outputs/checkpoints/rupnet_student_best.pt` |
+| `06_splitclass_segmentation.ipynb` | dual confidence-labeled maps (post-processing, no training) |
 | `07_temporal_gapfilling.ipynb` | gap-filled temporal maps (post-processing, no training) |
 
-**Reproduce end-to-end:** `rupnet.ipynb` → `06_radar_model.ipynb` (independent) → `04_knowledge_distillation.ipynb` → `05_splitclass_segmentation.ipynb` and `07_temporal_gapfilling.ipynb` (either order). `unet.ipynb` / `unetpp.ipynb` are backbone-comparison baselines only.
+**Reproduce end-to-end:** `03_rupnet_backbone.ipynb` → `04_radar_model.ipynb` (independent) → `05_knowledge_distillation.ipynb` → `06_splitclass_segmentation.ipynb` and `07_temporal_gapfilling.ipynb` (either order). `01_unet_backbone.ipynb` / `02_unetpp_backbone.ipynb` are backbone-comparison baselines only.
 
-> `sen12flood-eda.ipynb` is precursor EDA on a different, earlier dataset — not part of this pipeline.
+> `eda_sen12flood_precursor.ipynb` is precursor EDA on a different, earlier dataset — not part of this pipeline.
 
 ## Dataset
 
@@ -166,6 +166,8 @@ IEW_seg_DATASET_FINAL/tifs/
 RUPNet — the paper's best backbone — trails here despite matching the paper's parameter count almost exactly; the training log shows it was still improving when the 40-epoch run stopped (undertrained relative to its smaller capacity). See `implementation.md` for the fix and full diagnosis.
 
 Stages D–F (`04`–`07`) run correctly but haven't been executed end-to-end in this repo, since the dev environment is CPU-only.
+
+*(Stage lettering follows the paper: D = knowledge distillation (`05`), E = SplitClass segmentation (`06`), F = temporal gap-filling (`07`).)*
 
 ## Repository Layout
 

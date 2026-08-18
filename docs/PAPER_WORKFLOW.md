@@ -251,10 +251,10 @@ This repo (see [README.md](../README.md)) is **7 self-contained Jupyter notebook
 
 | Repo file | Paper section |
 |---|---|
-| `unet.ipynb`, `unetpp.ipynb`, `rupnet.ipynb` | §3.1 dataset handling + §4.2 backbone comparison (3 of 10 architectures) |
-| `rupnet.ipynb` (checkpoint reused as teacher) + `04_knowledge_distillation.ipynb` | §3.2 / §4.3 knowledge distillation (teacher/student + KL loss) |
-| `05_splitclass_segmentation.ipynb` | §3.2.1 SplitClass Segmentation (Algorithm 1) |
-| `06_radar_model.ipynb` | §4.1 binary Radar_Model (S1-only) |
+| `01_unet_backbone.ipynb`, `02_unetpp_backbone.ipynb`, `03_rupnet_backbone.ipynb` | §3.1 dataset handling + §4.2 backbone comparison (3 of 10 architectures) |
+| `03_rupnet_backbone.ipynb` (checkpoint reused as teacher) + `05_knowledge_distillation.ipynb` | §3.2 / §4.3 knowledge distillation (teacher/student + KL loss) |
+| `06_splitclass_segmentation.ipynb` | §3.2.1 SplitClass Segmentation (Algorithm 1) |
+| `04_radar_model.ipynb` | §4.1 binary Radar_Model (S1-only) |
 | `07_temporal_gapfilling.ipynb` | §3.2.2 Temporal Gap-Filling (Algorithm 2) |
 
 Every notebook implements GDL + WFL (§3.2's stated loss combination) inline.
