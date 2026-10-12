@@ -1,4 +1,4 @@
-dataset_root: "c:/Users/prajw/OneDrive - Amrita Vishwa Vidyapeetham/Desktop/SEM5/Deep Learning/Dataset/IEW_seg_DATASET_FINAL"
+dataset_root: "C:/E/S5/Deep_Learning/dataset/tifs_FINAL"
 patch_size: 64
 stride: 64
 s2_channels: 11
