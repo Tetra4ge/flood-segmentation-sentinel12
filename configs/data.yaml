@@ -1,4 +1,4 @@
-dataset_root: "d:/flood-segmentation-sentinel12/tifs"
+dataset_root: "tifs"
 patch_size: 64
 stride: 64
 s2_channels: 11

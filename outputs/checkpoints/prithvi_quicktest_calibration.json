@@ -1,0 +1,26 @@
+{
+  "alpha": 0.5,
+  "logit_bias": [
+    0.25,
+    1.0,
+    0.0,
+    -1.0,
+    0.75,
+    0.0
+  ],
+  "alpha_scores": {
+    "0.0": 0.16976584566542563,
+    "0.25": 0.16741086060960134,
+    "0.5": 0.17056302226539813,
+    "0.75": 0.16059427557738887,
+    "1.0": 0.1601955856456549
+  },
+  "class_names": [
+    "Open surface water (raw 2)",
+    "Soil seriously affected (raw 3)",
+    "Soil moderately affected (raw 4)",
+    "Soil slightly affected (raw 5)",
+    "Vegetation affected (raw 6)",
+    "Not affected (raw 7)"
+  ]
+}
