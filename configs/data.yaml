@@ -1,4 +1,4 @@
-dataset_root: "C:/E/S5/Deep_Learning/dataset/tifs_FINAL"
+dataset_root: "d:/flood-segmentation-sentinel12/tifs"
 patch_size: 64
 stride: 64
 s2_channels: 11
